@@ -1,0 +1,49 @@
+// RULES
+// <= has completion semantics: lhs can't be true unless some rule justifies it
+// <- is a plain logical implication
+sibling <= brother
+sibling <= sister
+
+brother <= dead_brother
+brother <= living_brother
+
+abusive_parent <= abusive_father
+abusive_parent <= abusive_mother
+
+guilt <- family_guilt
+
+// Not actually true, but ...
+Contradiction: loves_father, hates_father
+
+hates_father <- abusive_father
+
+// QUESTIONS
+
+Q: What could you have done to save your brother's life?
+   dead_brother, family_guilt
+A: Taken the car keys away
+   drunken_brother
+A: Taken him away from dad
+   abusive_father
+A: Made him move in with me to get him out of the neighborhood
+   brother_gang_member
+
+Q: What book do you read every year on the anniversary of your father's death?
+   dead_father
+A: The bible
+   relgious
+A: "Ender's Game".  He loved it.
+   loves_father
+A: Men Who Hate Women, by Stieg Larsson.
+   abusive_father
+
+Q: Why are you the black sheep of the family?
+   black_sheep
+A: I married outside of our faith
+   religious_family
+A: I just have this temper
+   bad_temper
+A: I like the bottle too much
+   drunk
+A: I'm a fucking loser
+   self_hating
