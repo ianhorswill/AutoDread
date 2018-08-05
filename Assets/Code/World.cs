@@ -12,6 +12,8 @@ public class World : MonoBehaviour {
     /// </summary>
     public readonly Problem Problem = new Problem("World");
 
+    public Solution Solution;
+
     // ReSharper disable once UnusedMember.Local
     void Start () {
         // Just to be sure
@@ -35,5 +37,13 @@ public class World : MonoBehaviour {
             }
             else Problem[assumption] = true;
         return Problem.Solve(false) != null;
+    }
+
+    public void SetWorld(IEnumerable<Literal> assumptions)
+    {
+        Problem.ResetPropositions();
+        foreach (var a in assumptions)
+            Problem[a] = true;
+        Solution = Problem.Solve();
     }
 }

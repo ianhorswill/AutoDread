@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using PicoSAT;
 using UnityEngine;
+using static PicoSAT.Language;
 
 /// <summary>
 /// Parses and stores the questions from a questionnaire
@@ -34,6 +35,7 @@ public class Questionnaire : MonoBehaviour
     public void Start ()
     {
         world = GetComponent<World>();
+        Predicate.Initialize(world);
         Problem.Current = world.Problem;          // Just to be paranoid
 
         ParseQuestionnaire(Resources.Load<TextAsset>(ResourceName).text);
@@ -68,48 +70,62 @@ public class Questionnaire : MonoBehaviour
     private void ParseQuestionnaire(string text)
     {
         foreach (var line in text.Split('\n'))
-        {
-            // Comments and whitespace
-            if (line.StartsWith("//") || line.Trim().Length == 0)
-                continue;
-
-            string lhs, rhs, args;
-
-            // Questions and answers
-            if (IsCommand("Q:", line, out args))
-            {
-                FinishQuestion();
-                questionText = args;
-            }
-            else if (IsCommand("A:", line, out args))
-            {
-                FinishAnswer();
-                parsingQuestion = false;
-                answerText = args;
-            }
-            else if (char.IsWhiteSpace(line[0]))
-            {
-                var props = ParseLiterals(line);
-                if (parsingQuestion)
-                    questionImplications.AddRange(props);
-                else
-                    answerImplications.AddRange(props);
-            }
-            // Rules
-            else if (DivideAt("<=", line, out lhs, out rhs))
-            {
-                world.Problem.Assert(new Rule((Proposition)ParseLiteral(lhs), ParseLiteralsAsExpression(rhs)));
-            }
-            else if (DivideAt("<-", line, out lhs, out rhs))
-            {
-                world.Problem.Assert(new Implication((Proposition)ParseLiteral(lhs), ParseLiteralsAsExpression(rhs)));
-            }
-            else if (IsCommand("contradiction:", line, out args))
-            {
-                world.Problem.Inconsistent(ParseLiterals(args));
-            }
-        }
+            ParseLine(line);
         FinishQuestion();
+    }
+
+    private void ParseLine(string line)
+    {
+// Comments and whitespace
+        if (line.StartsWith("//") || line.Trim().Length == 0)
+            return;
+
+        ParseCommand(line);
+    }
+
+    private void ParseCommand(string line)
+    {
+        string lhs, rhs, args;
+
+        // Questions and answers
+        if (IsCommand("Q:", line, out args))
+            ParseQuestionHeader(args);
+        else if (IsCommand("A:", line, out args))
+            ParseAnswerHeader(args);
+        else if (char.IsWhiteSpace(line[0]))
+            ParseImplications(line);
+        else if (DivideAt("<=", line, out lhs, out rhs))
+            world.Problem.Assert(new Rule((Proposition) ParseLiteral(lhs), ParseLiteralsAsExpression(rhs)));
+        else if (DivideAt("<-", line, out lhs, out rhs))
+            world.Problem.Assert(new Implication((Proposition) ParseLiteral(lhs), ParseLiteralsAsExpression(rhs)));
+        else if (IsCommand("contradiction:", line, out args))
+            world.Problem.Inconsistent(ParseLiterals(args));
+        else if (IsCommand("unique:", line, out args))
+            world.Problem.Unique(ParseLiterals(args));
+        else if (IsCommand("mutually exclusive:", line, out args))
+            world.Problem.AtMost(1, ParseLiterals(args));
+    }
+
+    private void ParseAnswerHeader(string args)
+    {
+        FinishAnswer();
+        parsingQuestion = false;
+        answerText = args;
+    }
+
+    private void ParseQuestionHeader(string args)
+    {
+        FinishQuestion();
+        questionText = args;
+    }
+
+    private void ParseImplications(string line)
+    {
+        var props = ParseLiterals(line);
+        if (parsingQuestion)
+            questionImplications.AddRange(props);
+        else
+            answerImplications.AddRange(props);
     }
 
     /// <summary>
@@ -179,8 +195,37 @@ public class Questionnaire : MonoBehaviour
     {
         lit = lit.Trim();
         if (lit.StartsWith("!"))
-            return Language.Not(lit.Substring(1).Trim());
-        return (Proposition)lit;
+            return Not(ParsePropositionString(lit.Substring(1)));
+        return ParsePropositionString(lit);
+    }
+
+    Literal ParsePropositionString(string proposition)
+    {
+        var words = SplitWords(proposition);
+        return ParsePropositionWords(words, proposition);
+    }
+
+    private Literal ParsePropositionWords(string[] words, string source)
+    {
+        if (words[0] == "not")
+            return Not(ParsePropositionWords(words.Skip(1).ToArray(), source));
+
+        if (words.Length == 1 && !string.IsNullOrEmpty(words[0]))
+            return (Proposition) words[0];
+
+        foreach (var rule in ParserRule.Rules)
+            if (rule.Match(words))
+                return rule.Parse(words);
+
+        throw new ArgumentException($"Invalid proposition syntax: \"{source}\"");
+    }
+
+    private static string[] SplitWords(string proposition)
+    {
+        var words = proposition.Split(' ').Select(s => s.Trim()).Where(s => s != "").ToArray();
+        if (words.Length == 0)
+            throw new ArgumentException($"Invalid proposition syntax: \"{proposition}\"");
+        return words;
     }
 
     /// <summary>
@@ -198,5 +243,6 @@ public class Questionnaire : MonoBehaviour
     {
         return ParseLiterals(literals).Aggregate<Expression>((rest, first) => new Conjunction(rest, first));
     }
+
     #endregion
 }

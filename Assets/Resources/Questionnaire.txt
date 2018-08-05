@@ -1,41 +1,100 @@
 // RULES
 // <= has completion semantics: lhs can't be true unless some rule justifies it
 // <- is a plain logical implication
-sibling <= brother
-sibling <= sister
-
-brother <= dead_brother
-brother <= living_brother
-
-abusive_parent <= abusive_father
-abusive_parent <= abusive_mother
 
 guilt <- family_guilt
 
-// Not actually true, but ...
-Contradiction: loves_father, hates_father
+// Personalities
+Unique: gregarious, playful
 
-hates_father <- abusive_father
+// Mindsets - every character has one
+Unique: nostalgic, arrogant, peaceful, optimistic, sentimental, prepared, obnoxious, vulnerable, bossy, health_oriented
+
+// Afflictions - every character has one
+Unique: insomnia, violent, asthma, grief_stricken, ignored, tone_deaf, bored, superstitious, bad_temper
+
+// Body types
+Unique: athletic, frail
+
+Mutually exclusive: simple tastes, posh tastes
 
 // QUESTIONS
 
+Q: What'll you have to drink?
+A: Whiskey, on the rocks.
+   likes alchohol, simple tastes
+A: A bottle of spring water, please
+   posh tastes
+A: A diet coke.  I'm trying to watch my weight.
+   health_oriented, likes sweets
+A: An ice-cold bottle of orange juice.  I'm parched
+   likes sweets
+
+
+Q: When you have trouble sleeping, what do you focus on?
+   insomnia
+A: The last time my brother and I saw each other
+   brother exists, sentimental
+A: The time I won a big game back in high school
+   athletic, nostalgic
+A: What I'll say to my lover when I make it back
+   optimistic, lover
+A: The serentiy of mountain climbing
+   likes outdoors, peaceful, athletic
+
+Q: What do you have in your pockets?
+A: My inhaler.  I'm not in the best of health.
+   asthma, frail
+A: My trusty-dusty pocket knife. You never know when something (or someone) will need cutting.
+   prepared, violent
+A: A battered paperback novel. Rule number two: always have something to read.
+   prepared, likes literature
+A: My lucky coin.
+   superstitious
+
+
+Q: What do you miss the most about the before times?
+   nostalgic
+A: All the people. It's lonely in the wastelands.
+   sentimental, gregarious
+A: There used to be a lot more to do around here. Everything is so boring these days.
+   playful, bored
+A: My family. They were all killed in the incident.
+   mother dead, father dead, likes mother, likes father, nostalgic, grief_stricken
+A: I had a dog. Now, I have nothing.
+   pet dead, grief_stricken
+
+
+Q: What do you think that you're better at than you really are?
+   arrogant
+A: I like to think I'm pretty funny. No one else seems to agree.
+   obnoxious
+A: I'm a really good singer! Probably.
+   tone_deaf
+A: I can weather any storm. As long as it's not a metaphor for a difficult emotional experience.
+   vulnerable
+A: I'm a talented leader; just, most of the time, people ignore my guidance.
+   bossy, ignored
+
+
+
 Q: What could you have done to save your brother's life?
-   dead_brother, family_guilt
+   dead brother, family_guilt
 A: Taken the car keys away
-   drunken_brother
+   alcoholic brother
 A: Taken him away from dad
-   abusive_father
+   abusive father
 A: Made him move in with me to get him out of the neighborhood
    brother_gang_member
 
 Q: What book do you read every year on the anniversary of your father's death?
-   dead_father
+   dead father
 A: The bible
    relgious
 A: "Ender's Game".  He loved it.
-   loves_father
+   loves father
 A: Men Who Hate Women, by Stieg Larsson.
-   abusive_father
+   abusive father
 
 Q: Why are you the black sheep of the family?
    black_sheep
@@ -44,6 +103,14 @@ A: I married outside of our faith
 A: I just have this temper
    bad_temper
 A: I like the bottle too much
-   drunk
+   alcoholic self
 A: I'm a fucking loser
-   self_hating
+   hates self
+
+
+Q: How often do you see your family?
+   living family
+A: Once a year
+A: Once a week
+   loves family
+A: Never

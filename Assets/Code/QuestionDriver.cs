@@ -55,7 +55,13 @@ public class QuestionDriver : MonoBehaviour
                 break;
 
             default:
-                if (current != null)
+                if (current == null)
+                {
+                    GUILayout.Label("");
+                    GUILayout.Label("");
+                    GUILayout.Label($"A possible you:\n{world.Solution.Model}", GUILayout.Width(Screen.width));
+                }
+                else
                 {
                     GUILayout.Label($"<b><i>{current.Text}</i></b>", GUILayout.Width(Screen.width));
                     for (int i = 0; i < potentialAnswers.Count; i++)
@@ -141,6 +147,9 @@ public class QuestionDriver : MonoBehaviour
         }
 
         if (potentialAnswers.Count < 2 || questionNumber == questionnaire.Questions.Count)
+        {
             current = null;
+            world.SetWorld(Implications);
+        }
     }
 }
