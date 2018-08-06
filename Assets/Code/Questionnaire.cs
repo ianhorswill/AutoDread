@@ -211,13 +211,21 @@ public class Questionnaire : MonoBehaviour
             return Not(ParsePropositionWords(words.Skip(1).ToArray(), source));
 
         if (words.Length == 1 && !string.IsNullOrEmpty(words[0]))
-            return (Proposition) words[0];
+            return ParseAtomicProposition(words[0]);
 
         foreach (var rule in ParserRule.Rules)
             if (rule.Match(words))
                 return rule.Parse(words);
 
         throw new ArgumentException($"Invalid proposition syntax: \"{source}\"");
+    }
+
+    private static Literal ParseAtomicProposition(string word)
+    {
+        if (Sort.Sorts.ContainsKey(word) || Sort.SortOf(word) != null)
+            return Predicate.Predicates["exists"].Call(word);
+
+        return (Proposition) word;
     }
 
     private static string[] SplitWords(string proposition)

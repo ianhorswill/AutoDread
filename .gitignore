@@ -14,6 +14,7 @@
 
 # Unity stuff
 Library/
+Temp/
 
 # Build results
 [Dd]ebug/

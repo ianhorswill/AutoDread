@@ -147,7 +147,7 @@ public class Predicate
             foreach (var g in strongGeneralizations)
             {
                 Problem.Current.Assert(g.LowLevelCall(arg) <= LowLevelCall(arg));
-                UnityEngine.Debug.Log($"{g.Name}({arg}) <= {Name}({arg})");
+                //UnityEngine.Debug.Log($"{g.Name}({arg}) <= {Name}({arg})");
             }
             foreach (var g in negativeGeneralizations)
                 Problem.Current.Inconsistent(g.Call(arg), LowLevelCall(arg));

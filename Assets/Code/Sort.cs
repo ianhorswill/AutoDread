@@ -28,6 +28,8 @@ public class Sort
         ParentSort = parentSort;
         ParentSort?.Subsorts.Add(this);
         Instances.AddRange(instances);
+        foreach (var i in instances)
+            EntitySort[i] = this;
     }
 
     public static void DeclareSort(string entity, Sort sort)
@@ -43,7 +45,9 @@ public class Sort
         Sort s;
         if (EntitySort.TryGetValue(entity, out s))
             return s;
-        EntitySort[entity] = s = defaultSort ?? Entity;
+        if (defaultSort == null)
+            return null;
+        EntitySort[entity] = s = defaultSort;
         s.Instances.Add(entity);
         return s;
     }
