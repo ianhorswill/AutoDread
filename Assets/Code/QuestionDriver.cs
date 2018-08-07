@@ -59,7 +59,7 @@ public class QuestionDriver : MonoBehaviour
                 {
                     GUILayout.Label("");
                     GUILayout.Label("");
-                    GUILayout.Label($"A possible you:\n{world.Solution.Model}", GUILayout.Width(Screen.width));
+                    GUILayout.Label($"A possible you:\n{world.Summary}", GUILayout.Width(Screen.width));
                 }
                 else
                 {

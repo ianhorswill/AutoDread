@@ -1,9 +1,54 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text;
 using PicoSAT;
 
 public class Predicate
 {
+    public static Predicate Exists;
+    public static void Initialize(World world)
+    {
+        Problem.Current = world.Problem; // Just to be paranoid
+
+        Exists = AddPredicate("exists", Sort.Person, new[] {null, "exists"});
+
+        var likes = AddPredicate("likes", Sort.Entity,
+            new[] {"likes", null});
+
+        var dislikes = AddPredicate("dislikes", Sort.Entity,
+            new[] {"dislikes", null});
+
+        MutuallyExclusive(likes, dislikes);
+
+        var loves = AddPredicate("loves", Sort.Person,
+            new[] {"loves", null}).AddGeneralization(likes).AddGeneralization(Exists);
+
+        var hates = AddPredicate("hates", Sort.Person,
+            new[] {"hates", null}).AddGeneralization(dislikes).AddGeneralization(Exists);
+
+        AddPredicate("alcoholic", Sort.Person,
+            new[] {"alcoholic", null}).AddGeneralization(Exists);
+
+        MutuallyExclusive(loves, hates);
+
+        AddPredicate("abusive", Sort.Person,
+            new[] {"abusive", null}).AddGeneralization(hates);
+        
+        AddPredicate("tastes", Sort.Entity,
+            new[] {null, "tastes"});
+
+        var living = AddPredicate("living", Sort.Person,
+            new[] {null, "is", "alive"},
+            new[] {"living", null}).AddStrongGeneralization(Exists);
+
+        var dead = AddPredicate("dead", Sort.Person,
+            new[] {null, "is", "dead"},
+            new[] {null, "dead"},
+            new[] {"dead", null}).AddStrongGeneralization(Exists);
+
+        MutuallyExclusive(living, dead);
+    }
+
     /// <summary>
     /// Name of the predicate, for debugging purposes
     /// </summary>
@@ -16,6 +61,9 @@ public class Predicate
     /// Sort of the predicate's second argument, or null if this is a unary predicate
     /// </summary>
     private readonly Sort arg2Sort;
+
+    private string[] generationPattern;
+
     /// <summary>
     /// The predicate object actually used by PicoSAT
     /// </summary>
@@ -26,6 +74,7 @@ public class Predicate
     /// </summary>
     private readonly List<Predicate> generalizations = new List<Predicate>();
     private readonly List<Predicate> strongGeneralizations = new List<Predicate>();
+    private readonly List<Predicate> strongSpecializations = new List<Predicate>();
 
 
     /// <summary>
@@ -86,6 +135,7 @@ public class Predicate
     public Predicate AddStrongGeneralization(Predicate p)
     {
         strongGeneralizations.Add(p);
+        p.strongSpecializations.Add(this);
         return this;
     }
 
@@ -107,6 +157,7 @@ public class Predicate
         arg1Sort = arg1;
         oneArgDomain = new List<string>();
         lowLevelPredicate = Language.Predicate<string>(name);
+        generationPattern = syntaxPatterns[0];
         foreach (var p in syntaxPatterns)
             ParserRule.AddSyntaxRule((Func<string, Literal>)OneArgParser, p);
     }
@@ -118,6 +169,7 @@ public class Predicate
         arg2Sort = arg2;
         twoArgDomain = new List<Tuple<string, string>>();
         lowLevelPredicate = Language.Predicate<string>(name);
+        generationPattern = syntaxPatterns[0];
         foreach (var p in syntaxPatterns)
             ParserRule.AddSyntaxRule((Func<string, string, Literal>)TwoArgParser, p);
     }
@@ -156,6 +208,9 @@ public class Predicate
                 if (pair.Key.Instances.Contains(arg))
                     Problem.Current.Assert(pair.Value <= LowLevelCall(arg));
             }
+
+            foreach (var s in strongSpecializations)
+                s.Call(arg);
         }
 
         return LowLevelCall(arg);
@@ -195,47 +250,33 @@ public class Predicate
         return (Proposition)lowLevelPredicate.DynamicInvoke(arg1, arg2);
     }
 
-    public static void Initialize(World world)
+    private string UnparseMyProposition(Proposition p)
     {
-        Problem.Current = world.Problem; // Just to be paranoid
+        var c = p.Name as Call;
+        var arg = 0;
+        var sb = new StringBuilder();
+        var firstOne = true;
+        foreach (var element in generationPattern)
+        {
+            if (firstOne)
+                firstOne = false;
+            else
+                sb.Append(' ');
+ 
+            sb.Append(element ?? c.Args[arg++]);
+        }
 
-        var exists = AddPredicate("exists", Sort.Person, new[] {null, "exists"});
-
-        var likes = AddPredicate("likes", Sort.Entity,
-            new[] {"likes", null});
-
-        var dislikes = AddPredicate("dislikes", Sort.Entity,
-            new[] {"dislikes", null});
-
-        MutuallyExclusive(likes, dislikes);
-
-        var loves = AddPredicate("loves", Sort.Person,
-            new[] {"loves", null}).AddGeneralization(likes).AddGeneralization(exists);
-
-        var hates = AddPredicate("hates", Sort.Person,
-            new[] {"hates", null}).AddGeneralization(dislikes).AddGeneralization(exists);
-
-        AddPredicate("alcoholic", Sort.Person,
-            new[] {"alcoholic", null}).AddGeneralization(exists);
-
-        MutuallyExclusive(loves, hates);
-
-        AddPredicate("abusive", Sort.Person,
-            new[] {"abusive", null}).AddGeneralization(hates);
-        
-        AddPredicate("tastes", Sort.Entity,
-            new[] {null, "tastes"});
-
-        var living = AddPredicate("living", Sort.Person,
-            new[] {null, "is", "alive"},
-            new[] {"living", null}).AddStrongGeneralization(exists);
-
-        var dead = AddPredicate("dead", Sort.Person,
-            new[] {null, "is", "dead"},
-            new[] {null, "dead"},
-            new[] {"dead", null}).AddStrongGeneralization(exists);
-
-        MutuallyExclusive(living, dead);
+        return sb.ToString();
     }
 
+    public static string Unparse(Proposition p)
+    {
+        var c = p.Name as Call;
+        if (c == null)
+            return p.Name.ToString();
+        var predicate = Predicates[c.Name];
+        if (predicate == null)
+            return p.Name.ToString();
+        return predicate.UnparseMyProposition(p);
+    }
 }

@@ -1,4 +1,6 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
+using System.Text;
 using PicoSAT;
 using UnityEngine;
 
@@ -44,6 +46,78 @@ public class World : MonoBehaviour {
         Problem.ResetPropositions();
         foreach (var a in assumptions)
             Problem[a] = true;
+        Problem.Optimize();
         Solution = Problem.Solve();
+        truths = Problem.Propositions.Where(p => Solution[p]).ToArray();
+        summary = null;
+    }
+
+    private string summary;
+    private Proposition[] truths;
+
+    Proposition[] PredicateTruths(Predicate p)
+    {
+        return truths.Where(prop => prop.IsCall(p.Name)).ToArray();
+    }
+
+    Proposition[] PredicatesAbout(string entity)
+    {
+        return truths.Where(p =>
+            {
+                var c = p.Name as Call;
+                return c != null && c.Args.Length == 1 && c.Args[0] == entity;
+            }
+        ).ToArray();
+    }
+
+    public string Summary
+    {
+        get
+        {
+            if (summary != null)
+                return summary;
+            var b = new StringBuilder();
+            var remainingTruths = new List<Proposition>(truths);
+            var existences = PredicateTruths(Predicate.Exists);
+            foreach (var e in existences)
+            {
+                var who = e.Arg<string>(0);
+
+                if (who != "self")
+                {
+                    var facts = PredicatesAbout(who);
+
+                    if (facts.Length > 1)
+                    {
+                        b.AppendFormat("\n<b>About your {0}: </b>", who);
+                        remainingTruths.Remove(e);
+
+                        foreach (var p in facts)
+                        {
+                            if (p.IsCall("exists"))
+                                continue;
+                            b.Append(Predicate.Unparse(p));
+                            b.Append(", ");
+                            remainingTruths.Remove(p);
+                        }
+                    }
+                    else b.Append($"\n<b>You have a {who}</b>");
+                }
+            }
+
+            if (remainingTruths.Count > 0)
+            {
+                b.Append("\n<b>Other:</b> \n");
+
+                foreach (var p in remainingTruths)
+                {
+                    b.Append(Predicate.Unparse(p));
+                    b.Append(", ");
+                }
+
+            }
+
+            return summary = b.ToString();
+        }
     }
 }
