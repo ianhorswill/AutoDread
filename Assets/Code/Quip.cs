@@ -1,5 +1,5 @@
 ﻿using System.Diagnostics;
-using PicoSAT;
+using CatSAT;
 
 /// <summary>
 /// A text string packaged with some logical implications

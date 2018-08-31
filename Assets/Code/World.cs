@@ -1,11 +1,11 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using PicoSAT;
+using CatSAT;
 using UnityEngine;
 
 /// <summary>
-/// Holds the story world state, as presented by a PicoSAT Problem.
+/// Holds the story world state, as presented by a CatSAT Problem.
 /// </summary>
 // ReSharper disable once ClassNeverInstantiated.Global
 public class World : MonoBehaviour {
@@ -65,7 +65,7 @@ public class World : MonoBehaviour {
         return truths.Where(p =>
             {
                 var c = p.Name as Call;
-                return c != null && c.Args.Length == 1 && c.Args[0] == entity;
+                return c != null && c.Args.Length == 1 && c.Args[0].Equals(entity);
             }
         ).ToArray();
     }

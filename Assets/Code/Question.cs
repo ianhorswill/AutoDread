@@ -1,5 +1,5 @@
 ﻿using System.Diagnostics;
-using PicoSAT;
+using CatSAT;
 
 /// <summary>
 /// A question for the plater, its possible answers, and their implications

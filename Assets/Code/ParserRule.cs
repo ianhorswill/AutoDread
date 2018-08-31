@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using PicoSAT;
+using CatSAT;
 
 public class ParserRule
 {

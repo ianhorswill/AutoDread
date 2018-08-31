@@ -93,8 +93,8 @@ A: The bible
    relgious
 A: "Ender's Game".  He loved it.
    loves father
-A: Men Who Hate Women, by Stieg Larsson.
-   abusive father
+A: "The Girl Who Played With Fire", by Stieg Larsson.
+   abusive father, hates father
 
 Q: Why are you the black sheep of the family?
    black_sheep
@@ -114,3 +114,4 @@ A: Once a year
 A: Once a week
    loves family
 A: Never
+   estranged_from_family

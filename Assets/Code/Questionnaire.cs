@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using PicoSAT;
+using CatSAT;
 using UnityEngine;
-using static PicoSAT.Language;
+using static CatSAT.Language;
 
 /// <summary>
 /// Parses and stores the questions from a questionnaire

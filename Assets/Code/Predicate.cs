@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-using PicoSAT;
+using CatSAT;
 
 public class Predicate
 {
@@ -65,7 +65,7 @@ public class Predicate
     private string[] generationPattern;
 
     /// <summary>
-    /// The predicate object actually used by PicoSAT
+    /// The predicate object actually used by CatSAT
     /// </summary>
     private readonly Delegate lowLevelPredicate;
 
@@ -195,7 +195,7 @@ public class Predicate
             // We're being called on an arg we've never been called on before
             oneArgDomain.Add(arg);
             foreach (var g in generalizations)
-                Problem.Current.Assert((Expression)LowLevelCall(arg) >= g.LowLevelCall(arg));
+                Problem.Current.Assert(LowLevelCall(arg) > g.LowLevelCall(arg));
             foreach (var g in strongGeneralizations)
             {
                 Problem.Current.Assert(g.LowLevelCall(arg) <= LowLevelCall(arg));
