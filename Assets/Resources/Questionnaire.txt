@@ -93,8 +93,8 @@ A: The bible
    relgious
 A: "Ender's Game".  He loved it.
    loves father
-A: "The Girl Who Played With Fire", by Stieg Larsson.
-   abusive father, hates father
+A: "King Lear""
+    hates father
 
 Q: Why are you the black sheep of the family?
    black_sheep
