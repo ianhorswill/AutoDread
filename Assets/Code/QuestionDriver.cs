@@ -26,17 +26,9 @@ public class QuestionDriver : MonoBehaviour
     }
 
     private void OnGUI () {
-        if (Event.current.type == EventType.KeyDown) {
-            if (_current == null) { return; }
+        if (Event.current.type != EventType.KeyDown || _current == null) { return; }
 
-            AnswerQuestion(-1 + Event.current.keyCode - KeyCode.Alpha0);
-        }
-
-//        else if (_current == null) {
-//            GUILayout.Label("");
-//            GUILayout.Label("");
-//            GUILayout.Label($"A possible you:\n{_world.Summary}", GUILayout.Width(Screen.width));
-//        }
+        AnswerQuestion(-1 + Event.current.keyCode - KeyCode.Alpha0);
     }
 
     private void AnswerQuestion (int i) {
