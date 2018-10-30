@@ -2,49 +2,98 @@
 using System.Collections.Generic;
 using System.Text;
 using CatSAT;
+using CatSAT.NonBoolean.SMT.MenuVariables;
 
 public class Predicate
 {
     public static Predicate Exists;
-    public static void Initialize(World world)
+    public static Predicate Male;
+    public static Predicate Female;
+
+    public static Func<string, MenuVariable<string>> NameOf;
+    
+    public static void Initialize()
     {
-        Problem.Current = world.Problem; // Just to be paranoid
+        Problem.Current = World.Problem; // Just to be paranoid
 
         Exists = AddPredicate("exists", Sort.Person, new[] {null, "exists"});
+        Exists.Quiet = true;
+        Male = AddPredicate("male", Sort.Person,
+            new [] { null, "be", "male" },
+            new [] {"male", null });
+        Male.Quiet = true;
+        Female = AddPredicate("female", Sort.Person,
+            new [] { null, "be", "female" },
+            new [] { "female", null} );
+        Female.Quiet = true;
+
+        NameOf = Sort.Function("name", Sort.Person, (e,vName) => new MenuVariable<string>(vName, null, Problem.Current, Exists.Call(e)));
+        Problem.Current.Assert(
+            Male.Call("father"),
+            Female.Call("mother"),
+            Male.Call("brother"),
+            Female.Call("sister"));
+        var maleNames = World.MenuFromResource("male names", "MaleFirstNames");
+        var femaleNames = World.MenuFromResource("female names", "FemaleFirstNames");
+
+        foreach (var p in Sort.Person.Members())
+        {
+            Problem.Current.Unique(Male.Call(p), Female.Call(p));
+            Problem.Current.Assert(NameOf(p).In(maleNames)
+                           <= Male.Call(p));
+            Problem.Current.Assert(NameOf(p).In(femaleNames)
+                           <= Female.Call(p));
+        }
 
         var likes = AddPredicate("likes", Sort.Entity,
-            new[] {"likes", null});
+            new[] { null, "like", null },
+            new[] { "likes", null });
+        likes.ImplicitSubject = "self";
 
         var dislikes = AddPredicate("dislikes", Sort.Entity,
-            new[] {"dislikes", null});
+            new[] { null, "dislike", null },
+            new [] {"dislikes", null });
+        dislikes.ImplicitSubject = "self";
 
         MutuallyExclusive(likes, dislikes);
 
         var loves = AddPredicate("loves", Sort.Person,
-            new[] {"loves", null}).AddGeneralization(likes).AddGeneralization(Exists);
+            new[] { null, "love", null },
+            new [] { "loves", null }).AddGeneralization(likes).AddGeneralization(Exists);
+        loves.ImplicitSubject = "self";
 
         var hates = AddPredicate("hates", Sort.Person,
-            new[] {"hates", null}).AddGeneralization(dislikes).AddGeneralization(Exists);
+            new[] { null, "hate", null },
+            new[] { "hates", null }).AddGeneralization(dislikes).AddGeneralization(Exists);
+        hates.ImplicitSubject = "self";
 
         AddPredicate("alcoholic", Sort.Person,
-            new[] {"alcoholic", null}).AddGeneralization(Exists);
+            new[] { null, "be", "an alcoholic" },
+            new [] { "alcoholic", null }).AddGeneralization(Exists);
 
         MutuallyExclusive(loves, hates);
+        //MutuallyExclusive(loves, dislikes);
 
         AddPredicate("abusive", Sort.Person,
-            new[] {"abusive", null}).AddGeneralization(hates);
-        
-        AddPredicate("tastes", Sort.Entity,
-            new[] {null, "tastes"});
+            new[] {null, "be","abusive"},
+            new[] { "abusive", null },
+            new[] { null, "abusive" }).AddGeneralization(hates);
+
+        var tastes = AddPredicate("tastes", Sort.Entity,
+            new[] { null, "have", null, "tastes"},
+            new [] { null, "tastes" });
+        tastes.ImplicitSubject = "self";
 
         var living = AddPredicate("living", Sort.Person,
-            new[] {null, "is", "alive"},
-            new[] {"living", null}).AddStrongGeneralization(Exists);
+            new[] { null, "be", "alive" },
+            new[] { "living", null },
+            new [] { null, "living" }).AddStrongGeneralization(Exists);
+        living.Quiet = true;
 
         var dead = AddPredicate("dead", Sort.Person,
-            new[] {null, "is", "dead"},
-            new[] {null, "dead"},
-            new[] {"dead", null}).AddStrongGeneralization(Exists);
+            new[] { null, "be", "dead" },
+            new[] { "dead", null },
+            new[] { null, "dead" }).AddStrongGeneralization(Exists);
 
         MutuallyExclusive(living, dead);
     }
@@ -53,10 +102,22 @@ public class Predicate
     /// Name of the predicate, for debugging purposes
     /// </summary>
     public readonly string Name;
+
+    /// <summary>
+    /// True if we shouldn't print text about this predicate
+    /// </summary>
+    public bool Quiet;
+
+    /// <summary>
+    /// For single-argument predicates: the subject to realize when generating NL
+    /// </summary>
+    public string ImplicitSubject;
+
     /// <summary>
     /// Sort of the predicate's first argument
     /// </summary>
     private readonly Sort arg1Sort;
+
     /// <summary>
     /// Sort of the predicate's second argument, or null if this is a unary predicate
     /// </summary>
@@ -73,6 +134,7 @@ public class Predicate
     /// Predicates that generalize this predicate
     /// </summary>
     private readonly List<Predicate> generalizations = new List<Predicate>();
+
     private readonly List<Predicate> strongGeneralizations = new List<Predicate>();
     private readonly List<Predicate> strongSpecializations = new List<Predicate>();
 
@@ -86,10 +148,103 @@ public class Predicate
     /// When this predicate is unary, list of arguments this predicate has been called on
     /// </summary>
     private readonly List<string> oneArgDomain;
+
     /// <summary>
     /// When this predicate is binary, list of arguments this predicate has been called on
     /// </summary>
     private readonly List<Tuple<string, string>> twoArgDomain;
+
+    public bool IsUnary => oneArgDomain != null;
+
+    public bool IsBinary => twoArgDomain != null;
+
+    /// <summary>
+    /// The extension of this predicate within the current model, as represented by the set
+    /// of its true instantiations.
+    /// </summary>
+    public IEnumerable<Proposition> Extension(Sort sort)
+    {
+        foreach (var arg in oneArgDomain)
+        {
+            if (Sort.IsA(arg, sort))
+            {
+                var prop = LowLevelCall(arg);
+                if (World.Solution[prop])
+                    yield return prop;
+            }
+        }
+    }
+
+    /// <summary>
+    /// The extension of this predicate within the current model, as represented by the set
+    /// of its true instantiations.
+    /// </summary>
+    public IEnumerable<Proposition> Extension(Sort sort1, Sort sort2)
+    {
+        foreach (var args in twoArgDomain)
+        {
+            if (Sort.IsA(args.Item1, sort1) && Sort.IsA(args.Item2, sort2))
+            {
+                var prop = LowLevelCall(args.Item1, args.Item2);
+                if (World.Solution[prop])
+                    yield return prop;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Returns the set { rightArg | this(leftArg, rightArg) true in this model }
+    /// </summary>
+    /// <param name="leftArg">First argument to this proposition</param>
+    public IEnumerable<string> RightRelata(string leftArg)
+    {
+        foreach (var args in twoArgDomain)
+        {
+            if (args.Item1 == leftArg && World.Solution[LowLevelCall(args.Item1, args.Item2)])
+                yield return args.Item2;
+        }
+    }
+
+    /// <summary>
+    /// Returns the set { leftArg | this(leftArg, rightArg) true in this model }
+    /// </summary>
+    /// <param name="rightArg">First argument to this proposition</param>
+    public IEnumerable<string> LeftRelata(string rightArg)
+    {
+        foreach (var args in twoArgDomain)
+        {
+            if (args.Item2 == rightArg && World.Solution[LowLevelCall(args.Item1, args.Item2)])
+                yield return args.Item1;
+        }
+    }
+
+    /// <summary>
+    /// Returns the set of this(leftArg, rightArg) instances true in this model
+    /// </summary>
+    /// <param name="leftArg">First argument to this proposition</param>
+    public IEnumerable<Proposition> RightRelataPropositions(string leftArg)
+    {
+        foreach (var args in twoArgDomain)
+        {
+            var prop = LowLevelCall(args.Item1, args.Item2);
+            if (args.Item1 == leftArg && World.Solution[prop])
+                yield return prop;
+        }
+    }
+
+    /// <summary>
+    /// Returns the set { leftArg | this(leftArg, rightArg) true in this model }
+    /// </summary>
+    /// <param name="rightArg">First argument to this proposition</param>
+    public IEnumerable<Proposition> LeftRelataPropositions(string rightArg)
+    {
+        foreach (var args in twoArgDomain)
+        {
+            var prop = LowLevelCall(args.Item1, args.Item2);
+            if (args.Item2 == rightArg && World.Solution[prop])
+                yield return prop;
+        }
+    }
 
     /// <summary>
     /// For a given Sort s, represents the proposition: exists x in s.this(x)
@@ -102,7 +257,7 @@ public class Predicate
         if (existentialQuantifications.TryGetValue(s, out prop))
             return prop;
         var problem = Problem.Current;
-        prop = problem.GetProposition(new Call(Name, s.Name));
+        prop = problem.GetProposition(CatSAT.Call.FromArgs(Problem.Current, Name, s.Name));
         existentialQuantifications[s] = prop;
 
         foreach (var sub in s.Subsorts)
@@ -121,6 +276,7 @@ public class Predicate
         return Predicates[name] = new Predicate(name, arg1, syntaxPattern);
     }
 
+    // ReSharper disable once UnusedMember.Global
     public static void AddPredicate(string name, Sort arg1, Sort arg2, params string[][] syntaxPattern)
     {
         Predicates[name] = new Predicate(name, arg1, arg2, syntaxPattern);
@@ -235,7 +391,7 @@ public class Predicate
     }
 
     /// <summary>
-    /// Return the Proposiiton representing the value of the predicate on the specified argument
+    /// Return the Proposition representing the value of the predicate on the specified argument
     /// </summary>
     private Proposition LowLevelCall(string arg)
     {
@@ -243,7 +399,7 @@ public class Predicate
     }
 
     /// <summary>
-    /// Return the Proposiiton representing the value of the predicate on the specified arguments
+    /// Return the Proposition representing the value of the predicate on the specified arguments
     /// </summary>
     private Proposition LowLevelCall(string arg1, string arg2)
     {
@@ -252,21 +408,62 @@ public class Predicate
 
     private string UnparseMyProposition(Proposition p)
     {
-        var c = p.Name as Call;
+        var c = (Call)p.Name;
         var arg = 0;
         var sb = new StringBuilder();
         var firstOne = true;
+        var argCase = Case.Subject;
+        string subject = null;
         foreach (var element in generationPattern)
         {
-            if (firstOne)
-                firstOne = false;
+            string increment;
+            if (element == "be")
+                increment = NL.Copula(c.Args[0].ToString());
+            else if (element != null)
+                increment = element;
             else
+            {
+                string unrealized;
+                if (firstOne && ImplicitSubject != null)
+                    unrealized = ImplicitSubject;
+                else
+                    unrealized = c.Args[arg++].ToString();
+                if (firstOne)
+                    subject = unrealized;
+                if (argCase == Case.Object && unrealized == subject)
+                    increment = NL.RealizeReflexive(unrealized);
+                else increment = NL.Realize(unrealized, argCase);
+            }
+
+            argCase = Case.Object;
+
+            if (increment.EndsWith("(s)"))
+            {
+                var thirdPerson = subject != NL.Speaker && subject != NL.Addressee;
+                increment = increment.Replace("(s)", thirdPerson ? "s" : "");
+            }
+
+            if (firstOne)
+            {
+                firstOne = false;
+                // Capitalize it.
+                increment = char.ToUpper(increment[0]) + increment.Substring(1);
+            }
+            else if (!increment.StartsWith("'"))
                 sb.Append(' ');
- 
-            sb.Append(element ?? c.Args[arg++]);
+
+            sb.Append(increment);
         }
 
+        sb.Append(".");
+
         return sb.ToString();
+    }
+
+    public static bool IsPredicateInstance(Proposition p)
+    {
+        var c = p.Name as Call;
+        return c != null && Predicates.ContainsKey(c.Name);
     }
 
     public static string Unparse(Proposition p)

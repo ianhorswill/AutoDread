@@ -1,7 +1,9 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using CatSAT;
+using CatSAT.NonBoolean.SMT.MenuVariables;
 using UnityEngine;
 
 /// <summary>
@@ -12,14 +14,30 @@ public class World : MonoBehaviour {
     /// <summary>
     /// SAT problem holding the various accumulated implications in the story world.
     /// </summary>
-    public readonly Problem Problem = new Problem("World");
+    public static readonly Problem Problem = new Problem("World");
 
-    public Solution Solution;
+    public static Solution Solution;
 
-    // ReSharper disable once UnusedMember.Local
-    void Start () {
+    public MenuVariable<string> FirstName;
+    public MenuVariable<string> LastName;
+    public FloatVariable Age;
+    public Proposition Male;
+    public Proposition Female;
+
+    public void Initialize() {
         // Just to be sure
         Problem.Current = Problem;
+        Age = new FloatVariable("age", 15, 60);
+        Male = "male";
+        Female = "female";
+        Problem.Unique(Male, Female);
+        LastName = new MenuVariable<string>("surname", MenuFromResource("surnames", "LastNames"), Problem);
+        FirstName = Predicate.NameOf("self");
+    }
+
+    public static Menu<string> MenuFromResource(string menuName, string resourceName)
+    {
+        return new Menu<string>(menuName, Resources.Load<TextAsset>(resourceName).text.Split(new char[0], StringSplitOptions.RemoveEmptyEntries));
     }
 
     /// <summary>
@@ -74,34 +92,44 @@ public class World : MonoBehaviour {
     {
         get
         {
+            NL.Addressee = "self";
             if (summary != null)
                 return summary;
             var b = new StringBuilder();
             var remainingTruths = new List<Proposition>(truths);
             var existences = PredicateTruths(Predicate.Exists);
+            b.Append($"<b>You are {FirstName.Value(Solution)} {LastName.Value(Solution)}</b>, age {(int) (Age.Value(Solution))}\n");
             foreach (var e in existences)
             {
                 var who = e.Arg<string>(0);
 
                 if (who != "self")
                 {
+                    var whoName = Predicate.NameOf(who).Value(Solution);
+                    var isFirst = true;
+
+                    NL.Topic = who;
+
                     var facts = PredicatesAbout(who);
+                    foreach (var f in facts)
+                        remainingTruths.Remove(f);
 
-                    if (facts.Length > 1)
+                    var relevantFacts = facts.Where(f => f.IsNonQuietPredicate()).ToArray();
+
+                    if (relevantFacts.Length > 0)
                     {
-                        b.AppendFormat("\n<b>About your {0}: </b>", who);
-                        remainingTruths.Remove(e);
+                        b.AppendFormat("\n<b>About your {0}, {1}: </b>", who, whoName);
 
-                        foreach (var p in facts)
+                        foreach (var p in relevantFacts)
                         {
-                            if (p.IsCall("exists"))
-                                continue;
+                            if (isFirst)
+                                isFirst = false;
+                            else
+                                b.Append("  ");
                             b.Append(Predicate.Unparse(p));
-                            b.Append(", ");
-                            remainingTruths.Remove(p);
                         }
                     }
-                    else b.Append($"\n<b>You have a {who}</b>");
+                    else b.Append($"\n<b>You have a {who}, {whoName}</b>");
                 }
             }
 
@@ -111,8 +139,10 @@ public class World : MonoBehaviour {
 
                 foreach (var p in remainingTruths)
                 {
+                    if (!Predicate.IsPredicateInstance(p) || p.IsQuietPredicate() || p.ArgIsSort())
+                        continue;
                     b.Append(Predicate.Unparse(p));
-                    b.Append(", ");
+                    b.Append("  ");
                 }
 
             }

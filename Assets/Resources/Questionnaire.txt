@@ -2,6 +2,11 @@
 // <= has completion semantics: lhs can't be true unless some rule justifies it
 // <- is a plain logical implication
 
+age<60 <- living parent
+age>21 <- likes alcohol
+age>25 <- alcoholic self
+age>24 <- married
+
 guilt <- family_guilt
 
 // Personalities
@@ -83,9 +88,9 @@ Q: What could you have done to save your brother's life?
 A: Taken the car keys away
    alcoholic brother
 A: Taken him away from dad
-   abusive father
+   abusive father, age > 24
 A: Made him move in with me to get him out of the neighborhood
-   brother_gang_member
+   brother_gang_member, age > 24
 
 Q: What book do you read every year on the anniversary of your father's death?
    dead father
@@ -99,7 +104,7 @@ A: "King Lear""
 Q: Why are you the black sheep of the family?
    black_sheep
 A: I married outside of our faith
-   religious_family
+   religious_family, married
 A: I just have this temper
    bad_temper
 A: I like the bottle too much
